@@ -1,20 +1,18 @@
+import datetime
+
 import cv2
 import numpy as np
-import paho.mqtt.client as mqtt
+import requests
 
-def on_connect(client, user_data, flags, rc):
-    print("Connected to MQTT" + str(rc))
-    client.publish("intruder", "connected")
+LAMP_ON_URL = 'https://maker.ifttt.com/trigger/lamp_on/with/key/bRWG-Z9VFdWKcG1_GlNpS9'
+LAMP_OFF_URL = 'https://maker.ifttt.com/trigger/lamp_off/with/key/bRWG-Z9VFdWKcG1_GlNpS9'
 
-
-client = mqtt.Client("webcam")
-client.on_connect = on_connect
-#client.on_message = on_message
-# client.connect("mqtt.eclipseprojects.io", 1883, 60)
-client.username_pw_set("lieme", "x7iNJWfycxrdEz51")
-client.connect("lieme.cloud.shiftr.io", 1883, 60)
+last_event_time = datetime.datetime.now()
+intruder_detected = False
 
 def show_webcam(mirror=False):
+    global last_event_time
+    global intruder_detected
     cam = cv2.VideoCapture(0)
     prev_img = None
     while True:
@@ -29,11 +27,21 @@ def show_webcam(mirror=False):
         count =  np.count_nonzero(thresh)
         changed_pixels = thresh.size - count
 
+        now = datetime.datetime.now()
+        time_delta = (now - last_event_time).seconds
+
         #print(thresh.size)
         #print(thresh.size - count)
-        if changed_pixels > 100_000:
-            client.publish("intruder", changed_pixels)
+        if changed_pixels > 100_000 and not intruder_detected and time_delta > 1:
             print("INTRUDER ALERT")
+            requests.post(LAMP_OFF_URL)
+            intruder_detected = True
+            last_event_time = now
+        elif changed_pixels < 100_000 and time_delta > 10:
+            print("NOBODY THERE")
+            requests.post(LAMP_ON_URL)
+            intruder_detected = False
+            last_event_time = now
 
         #print(thresh.size - count)
         #if thresh.size 
@@ -49,9 +57,8 @@ def show_webcam(mirror=False):
 
 
 def main():
-    client.loop_start()
+    requests.post(LAMP_ON_URL)
     show_webcam(mirror=True)
-    client.loop_stop()
 
 
 if __name__ == '__main__':
