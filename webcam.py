@@ -35,12 +35,10 @@ def show_webcam(mirror=False):
     skip_frames = 0
     while True:
         ret_val, img = cam.read()
-        if skip_frames > 0:
-            prev_img = img
-            skip_frames -= 1
-            continue
+
         if mirror:
             img = cv2.flip(img, 1)
+
         if prev_img is None:
             prev_img = img
 
@@ -48,7 +46,15 @@ def show_webcam(mirror=False):
         thresh = cv2.threshold(delta, 10, 255, cv2.THRESH_BINARY_INV)[1]
         count = np.count_nonzero(thresh)
         changed_pixels = thresh.size - count
-        print(changed_pixels)
+        if changed_pixels > PIXEL_CHANGE_THRESHOLD:
+            print(changed_pixels)
+
+        cv2.imshow('my webcam', delta)
+
+        if skip_frames > 0:
+            prev_img = img
+            skip_frames -= 1
+            continue
 
         now = datetime.datetime.now()
 
@@ -74,7 +80,6 @@ def show_webcam(mirror=False):
                     prev_img = img
                     state = STATE_NOBODY_HERE
 
-        cv2.imshow('my webcam', delta)
         if cv2.waitKey(1) == 27:
             break  # esc to quit
 
