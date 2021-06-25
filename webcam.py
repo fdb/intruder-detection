@@ -1,4 +1,6 @@
 import datetime
+from os import system
+import subprocess
 
 import cv2
 import numpy as np
@@ -9,6 +11,12 @@ LAMP_OFF_URL = 'https://maker.ifttt.com/trigger/lamp_off/with/key/bRWG-Z9VFdWKcG
 
 last_event_time = datetime.datetime.now()
 intruder_detected = False
+
+def turn_led_on():
+    system('/opt/vc/bin/vcmailbox 0x00038041 8 8 130 1')
+
+def turn_led_off():
+    system('/opt/vc/bin/vcmailbox 0x00038041 8 8 130 0')
 
 def show_webcam(mirror=False):
     global last_event_time
@@ -32,13 +40,15 @@ def show_webcam(mirror=False):
 
         #print(thresh.size)
         #print(thresh.size - count)
-        if changed_pixels > 100_000 and not intruder_detected and time_delta > 1:
+        if changed_pixels > 20_000 and not intruder_detected and time_delta > 1:
             print("INTRUDER ALERT")
+            turn_led_on()
             requests.post(LAMP_OFF_URL)
             intruder_detected = True
             last_event_time = now
-        elif changed_pixels < 100_000 and time_delta > 10:
+        elif changed_pixels < 20_000 and time_delta > 10:
             print("NOBODY THERE")
+            turn_led_off()
             requests.post(LAMP_ON_URL)
             intruder_detected = False
             last_event_time = now
@@ -57,6 +67,7 @@ def show_webcam(mirror=False):
 
 
 def main():
+    turn_led_off()
     requests.post(LAMP_ON_URL)
     show_webcam(mirror=True)
 
